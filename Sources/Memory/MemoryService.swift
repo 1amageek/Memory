@@ -1,15 +1,14 @@
 // MemoryService.swift
-// Core memory operations — recall, store, entity decode
+// Core memory operations — recall and store
 
 import Foundation
 import SwiftMemory
 import Database
 
-/// Core memory service. Provides recall, store, and entity decode.
+/// Core memory service. Provides recall and store operations.
 public actor MemoryService {
 
     public let memory: SwiftMemory.Memory
-    private var entityDecoders: [String: @Sendable (Data) throws -> any Persistable & Sendable] = [:]
 
     public init(
         path: String?,
@@ -21,19 +20,6 @@ public actor MemoryService {
             entityTypes: entityTypes,
             graphName: graphName
         )
-        for type in entityTypes {
-            Self.registerDecoder(type, into: &entityDecoders)
-        }
-    }
-
-    private static func registerDecoder<T: Persistable>(
-        _ type: T.Type,
-        into map: inout [String: @Sendable (Data) throws -> any Persistable & Sendable]
-    ) {
-        let name = String(describing: type)
-        map[name] = { data in
-            try JSONDecoder().decode(T.self, from: data)
-        }
     }
 
     // MARK: - Recall
@@ -50,17 +36,7 @@ public actor MemoryService {
 
     // MARK: - Ontology
 
-    /// Returns the ontology definition in HOOT compact format.
-    /// Used by SubAgent to understand available classes and properties.
     public func ontologyHOOT() async -> String {
         memory.ontologyPolicy.buildOntology().toHoot(mode: .compact)
-    }
-
-    // MARK: - Entity Decode
-
-    /// Decode a JSON entity by type name. Used by MCP store tool.
-    public func decodeEntity(type: String, from data: Data) throws -> (any Persistable & Sendable)? {
-        guard let decoder = entityDecoders[type] else { return nil }
-        return try decoder(data)
     }
 }

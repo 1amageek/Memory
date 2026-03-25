@@ -21,6 +21,7 @@ import Logging
 public actor MemoryMCPHTTPServer {
 
     private let service: MemoryService
+    private let storeConfig: StoreToolConfig
     private let host: String
     private let requestedPort: Int
     private var channel: Channel?
@@ -29,8 +30,9 @@ public actor MemoryMCPHTTPServer {
     public private(set) var port: Int = 0
     public var url: String { "http://\(host):\(port)/mcp" }
 
-    public init(service: MemoryService, host: String = "127.0.0.1", port: Int = 0) {
+    public init(service: MemoryService, storeConfig: StoreToolConfig, host: String = "127.0.0.1", port: Int = 0) {
         self.service = service
+        self.storeConfig = storeConfig
         self.host = host
         self.requestedPort = port
     }
@@ -38,6 +40,7 @@ public actor MemoryMCPHTTPServer {
     @discardableResult
     public func start() async throws -> Int {
         let serviceRef = service
+        let storeConfigRef = storeConfig
         let loggerRef = logger
 
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -47,7 +50,7 @@ public actor MemoryMCPHTTPServer {
             .childChannelInitializer { channel in
                 channel.pipeline.configureHTTPServerPipeline().flatMap {
                     channel.pipeline.addHandler(
-                        MCPHTTPHandler(service: serviceRef, endpoint: "/mcp", logger: loggerRef)
+                        MCPHTTPHandler(service: serviceRef, storeConfig: storeConfigRef, endpoint: "/mcp", logger: loggerRef)
                     )
                 }
             }
@@ -72,6 +75,7 @@ private final class MCPHTTPHandler: ChannelInboundHandler, Sendable {
     typealias OutboundOut = HTTPServerResponsePart
 
     private let service: MemoryService
+    private let storeConfig: StoreToolConfig
     private let endpoint: String
     private let logger: Logger
 
@@ -82,8 +86,9 @@ private final class MCPHTTPHandler: ChannelInboundHandler, Sendable {
     }
     private let state = Mutex(RequestState())
 
-    init(service: MemoryService, endpoint: String, logger: Logger) {
+    init(service: MemoryService, storeConfig: StoreToolConfig, endpoint: String, logger: Logger) {
         self.service = service
+        self.storeConfig = storeConfig
         self.endpoint = endpoint
         self.logger = logger
     }
@@ -126,7 +131,7 @@ private final class MCPHTTPHandler: ChannelInboundHandler, Sendable {
                 version: "0.1.0",
                 capabilities: .init(tools: .init())
             )
-            await MemoryMCP.registerTools(on: server, service: service)
+            await MemoryMCP.registerTools(on: server, service: self.service, storeConfig: self.storeConfig)
             do {
                 try await server.start(transport: transport)
             } catch {

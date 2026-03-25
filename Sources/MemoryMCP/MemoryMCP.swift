@@ -6,10 +6,34 @@ import MCP
 import Memory
 import SwiftMemory
 
+/// Configuration for the store tool.
+/// Client provides the input schema and decoder for their @Generable store input type.
+public struct StoreToolConfig: Sendable {
+    /// JSON Schema for the store tool input (from @Generable GenerationSchema).
+    public let inputSchema: Value
+
+    /// Decode JSON data into a MemoryBatchConvertible, then convert to MemoryBatch.
+    public let decode: @Sendable (Data) throws -> MemoryBatch
+
+    public init(inputSchema: Value, decode: @escaping @Sendable (Data) throws -> MemoryBatch) {
+        self.inputSchema = inputSchema
+        self.decode = decode
+    }
+
+    /// Convenience init from a MemoryBatchConvertible & Codable type.
+    public init<T: MemoryBatchConvertible & Codable>(type: T.Type, inputSchema: Value) {
+        self.inputSchema = inputSchema
+        self.decode = { data in
+            let input = try JSONDecoder().decode(T.self, from: data)
+            return input.toBatch()
+        }
+    }
+}
+
 /// Registers Memory tools on an MCP Server.
 public enum MemoryMCP {
 
-    public static func registerTools(on server: Server, service: MemoryService) async {
+    public static func registerTools(on server: Server, service: MemoryService, storeConfig: StoreToolConfig) async {
 
         await server.withMethodHandler(ListTools.self) { _ in
             .init(tools: [
@@ -40,47 +64,12 @@ public enum MemoryMCP {
                 ),
                 Tool(
                     name: "store",
-                    description: "Store structured knowledge in memory. Entities are saved as typed records with automatic triple generation. Relationships are saved as explicit RDF triples.",
-                    inputSchema: .object([
-                        "type": "object",
-                        "properties": .object([
-                            "entities": .object([
-                                "type": "array",
-                                "description": "Entities to store. Each must have 'type' and fields matching the type schema.",
-                                "items": .object([
-                                    "type": "object",
-                                    "properties": .object([
-                                        "type": .object([
-                                            "type": "string",
-                                            "description": "Entity type: Person, Organization, Place, Event, Activity, Product, Service"
-                                        ]),
-                                        "data": .object([
-                                            "type": "object",
-                                            "description": "Entity fields as key-value pairs matching the type schema"
-                                        ])
-                                    ]),
-                                    "required": .array([.string("type"), .string("data")])
-                                ])
-                            ]),
-                            "relationships": .object([
-                                "type": "array",
-                                "description": "Relationships between entities as RDF triples.",
-                                "items": .object([
-                                    "type": "object",
-                                    "properties": .object([
-                                        "subject": .object(["type": "string", "description": "Subject entity name or IRI"]),
-                                        "predicate": .object(["type": "string", "description": "Predicate IRI (e.g. ex:worksAt)"]),
-                                        "object": .object(["type": "string", "description": "Object entity name or IRI"])
-                                    ]),
-                                    "required": .array([.string("subject"), .string("predicate"), .string("object")])
-                                ])
-                            ])
-                        ])
-                    ])
+                    description: "Store structured knowledge in memory. Input must match the JSON Schema. Entities are saved as typed records. Relationships are saved as RDF triples.",
+                    inputSchema: storeConfig.inputSchema
                 ),
                 Tool(
                     name: "ontology",
-                    description: "Get the ontology definition in HOOT compact format. Returns available classes, properties, and axioms. Call this before using the store tool to understand what entity types and predicates are available.",
+                    description: "Get the ontology definition in HOOT compact format. Returns available classes, properties, and axioms.",
                     inputSchema: .object([
                         "type": "object",
                         "properties": .object([:])
@@ -94,7 +83,7 @@ public enum MemoryMCP {
             case "recall":
                 return await handleRecall(params: params, service: service)
             case "store":
-                return await handleStore(params: params, service: service)
+                return await handleStore(params: params, service: service, config: storeConfig)
             case "ontology":
                 let hoot = await service.ontologyHOOT()
                 return .init(content: [.text(hoot)], isError: false)
@@ -143,49 +132,21 @@ public enum MemoryMCP {
 
     // MARK: - Store
 
-    private static func handleStore(params: CallTool.Parameters, service: MemoryService) async -> CallTool.Result {
-        var batch = MemoryBatch()
-        var entityCount = 0
-        var relationshipCount = 0
-
-        // Parse entities
-        if let entitiesValue = params.arguments?["entities"], let entities = entitiesValue.arrayValue {
-            for entityValue in entities {
-                guard let obj = entityValue.objectValue,
-                      let type = obj["type"]?.stringValue,
-                      let data = obj["data"] else { continue }
-
-                do {
-                    let jsonData = try JSONEncoder().encode(data)
-                    if let entity = try await service.decodeEntity(type: type, from: jsonData) {
-                        batch.entity(entity)
-                        entityCount += 1
-                    }
-                } catch {
-                    continue
-                }
-            }
-        }
-
-        // Parse relationships
-        if let relsValue = params.arguments?["relationships"], let rels = relsValue.arrayValue {
-            for rel in rels {
-                guard let obj = rel.objectValue,
-                      let subject = obj["subject"]?.stringValue,
-                      let predicate = obj["predicate"]?.stringValue,
-                      let object = obj["object"]?.stringValue else { continue }
-                batch.triple(subject, predicate, object)
-                relationshipCount += 1
-            }
-        }
-
-        guard !batch.entities.isEmpty || !batch.statements.isEmpty else {
-            return .init(content: [.text("Nothing to store")], isError: false)
+    private static func handleStore(params: CallTool.Parameters, service: MemoryService, config: StoreToolConfig) async -> CallTool.Result {
+        guard let arguments = params.arguments else {
+            return .init(content: [.text("Missing arguments")], isError: true)
         }
 
         do {
+            let data = try JSONEncoder().encode(arguments)
+            let batch = try config.decode(data)
+
+            guard !batch.entities.isEmpty || !batch.statements.isEmpty else {
+                return .init(content: [.text("Nothing to store")], isError: false)
+            }
+
             try await service.store(batch)
-            return .init(content: [.text("Stored \(entityCount) entities, \(relationshipCount) relationships")], isError: false)
+            return .init(content: [.text("Stored \(batch.entities.count) entities, \(batch.statements.count) relationships")], isError: false)
         } catch {
             return .init(content: [.text("Store failed: \(error.localizedDescription)")], isError: true)
         }

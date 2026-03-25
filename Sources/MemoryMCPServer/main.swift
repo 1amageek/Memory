@@ -1,10 +1,13 @@
 // MemoryMCPServer
 // Standalone MCP server for Memory — stdio transport
+// Note: store tool requires StoreToolConfig from the client.
+// This server provides recall and ontology only.
 
 import Foundation
 import MCP
 import Memory
 import MemoryMCP
+import SwiftMemory
 
 let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
 let memoryDir = appSupport.appendingPathComponent("Memory", isDirectory: true)
@@ -19,7 +22,13 @@ let server = Server(
     capabilities: .init(tools: .init())
 )
 
-await MemoryMCP.registerTools(on: server, service: service)
+// Standalone server: store config with empty schema (client must provide via HTTP server)
+let storeConfig = StoreToolConfig(
+    inputSchema: .object(["type": "object"]),
+    decode: { _ in .empty }
+)
+
+await MemoryMCP.registerTools(on: server, service: service, storeConfig: storeConfig)
 
 let transport = StdioTransport()
 try await server.start(transport: transport)
