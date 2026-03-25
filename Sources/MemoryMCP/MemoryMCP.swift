@@ -77,6 +77,14 @@ public enum MemoryMCP {
                             ])
                         ])
                     ])
+                ),
+                Tool(
+                    name: "ontology",
+                    description: "Get the ontology definition in HOOT compact format. Returns available classes, properties, and axioms. Call this before using the store tool to understand what entity types and predicates are available.",
+                    inputSchema: .object([
+                        "type": "object",
+                        "properties": .object([:])
+                    ])
                 )
             ])
         }
@@ -87,6 +95,9 @@ public enum MemoryMCP {
                 return await handleRecall(params: params, service: service)
             case "store":
                 return await handleStore(params: params, service: service)
+            case "ontology":
+                let hoot = await service.ontologyHOOT()
+                return .init(content: [.text(hoot)], isError: false)
             default:
                 return .init(content: [.text("Unknown tool: \(params.name)")], isError: true)
             }

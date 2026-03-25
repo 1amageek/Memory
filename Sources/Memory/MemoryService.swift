@@ -48,6 +48,14 @@ public actor MemoryService {
         try await memory.store(batch)
     }
 
+    // MARK: - Ontology
+
+    /// Returns the ontology definition in HOOT compact format.
+    /// Used by SubAgent to understand available classes and properties.
+    public func ontologyHOOT() async -> String {
+        memory.ontologyPolicy.buildOntology().toHoot(mode: .compact)
+    }
+
     // MARK: - Entity Decode
 
     /// Decode a JSON entity by type name. Used by MCP store tool.
