@@ -5,22 +5,19 @@ import Foundation
 import SwiftMemory
 import Database
 
-/// Core memory service. Provides recall and store operations.
+/// Core memory service. Provides recall, store, and entity decode.
 public actor MemoryService {
 
     public let memory: SwiftMemory.Memory
     private var entityDecoders: [String: @Sendable (Data) throws -> any Persistable & Sendable] = [:]
 
-    /// Initialize with a file path for SQLite persistence.
     public init(
         path: String?,
-        encoding: any MemoryEncoding,
         entityTypes: [any Persistable.Type] = [],
         graphName: String = "memory:default"
     ) async throws {
         self.memory = try await SwiftMemory.Memory(
             path: path,
-            encoding: encoding,
             entityTypes: entityTypes,
             graphName: graphName
         )
@@ -46,10 +43,6 @@ public actor MemoryService {
     }
 
     // MARK: - Store
-
-    public func store(_ input: any GivenRepresentable) async throws {
-        try await memory.store(input)
-    }
 
     public func store(_ batch: MemoryBatch) async throws {
         try await memory.store(batch)
