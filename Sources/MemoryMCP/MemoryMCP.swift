@@ -4,37 +4,34 @@
 import Foundation
 import MCP
 import Memory
+import SwiftMemory
 
 /// Registers Memory tools on an MCP Server.
-///
-/// Call `registerTools(on:service:)` to add recall and store tools.
-/// Works with any transport — stdio, HTTP, or in-process.
 public enum MemoryMCP {
 
-    /// Register memory tools on the given MCP server.
     public static func registerTools(on server: Server, service: MemoryService) async {
 
         await server.withMethodHandler(ListTools.self) { _ in
             .init(tools: [
                 Tool(
                     name: "recall",
-                    description: "Recall associated knowledge from memory. Given keywords, finds related entities through spreading activation on the knowledge graph.",
+                    description: "Recall associated knowledge from memory via spreading activation.",
                     inputSchema: .object([
                         "type": "object",
                         "properties": .object([
                             "keywords": .object([
                                 "type": "array",
                                 "items": .object(["type": "string"]),
-                                "description": "Keywords to search for. Entities reached from multiple keywords score higher (convergence)."
+                                "description": "Keywords to search for. Entities reached from multiple keywords score higher."
                             ]),
                             "maxHops": .object([
                                 "type": "integer",
-                                "description": "Maximum graph traversal depth. Default: 2",
+                                "description": "Graph traversal depth. Default: 2",
                                 "default": .int(2)
                             ]),
                             "limit": .object([
                                 "type": "integer",
-                                "description": "Maximum results. Default: 20",
+                                "description": "Max results. Default: 20",
                                 "default": .int(20)
                             ])
                         ]),
@@ -43,16 +40,42 @@ public enum MemoryMCP {
                 ),
                 Tool(
                     name: "store",
-                    description: "Store text in memory. Saved as Given and interpreted to extract entities and relationships.",
+                    description: "Store structured knowledge in memory. Entities are saved as typed records with automatic triple generation. Relationships are saved as explicit RDF triples.",
                     inputSchema: .object([
                         "type": "object",
                         "properties": .object([
-                            "text": .object([
-                                "type": "string",
-                                "description": "Text to store"
+                            "entities": .object([
+                                "type": "array",
+                                "description": "Entities to store. Each must have 'type' and fields matching the type schema.",
+                                "items": .object([
+                                    "type": "object",
+                                    "properties": .object([
+                                        "type": .object([
+                                            "type": "string",
+                                            "description": "Entity type: Person, Organization, Place, Event, Activity, Product, Service"
+                                        ]),
+                                        "data": .object([
+                                            "type": "object",
+                                            "description": "Entity fields as key-value pairs matching the type schema"
+                                        ])
+                                    ]),
+                                    "required": .array([.string("type"), .string("data")])
+                                ])
+                            ]),
+                            "relationships": .object([
+                                "type": "array",
+                                "description": "Relationships between entities as RDF triples.",
+                                "items": .object([
+                                    "type": "object",
+                                    "properties": .object([
+                                        "subject": .object(["type": "string", "description": "Subject entity name or IRI"]),
+                                        "predicate": .object(["type": "string", "description": "Predicate IRI (e.g. ex:worksAt)"]),
+                                        "object": .object(["type": "string", "description": "Object entity name or IRI"])
+                                    ]),
+                                    "required": .array([.string("subject"), .string("predicate"), .string("object")])
+                                ])
                             ])
-                        ]),
-                        "required": .array([.string("text")])
+                        ])
                     ])
                 )
             ])
@@ -70,7 +93,7 @@ public enum MemoryMCP {
         }
     }
 
-    // MARK: - Handlers
+    // MARK: - Recall
 
     private static func handleRecall(params: CallTool.Parameters, service: MemoryService) async -> CallTool.Result {
         guard let keywordsValue = params.arguments?["keywords"] else {
@@ -91,11 +114,9 @@ public enum MemoryMCP {
 
         do {
             let result = try await service.recall(keywords: keywords, maxHops: maxHops, limit: limit)
-
             if result.entities.isEmpty {
                 return .init(content: [.text("No entities found for: \(keywords.joined(separator: ", "))")], isError: false)
             }
-
             var output = "Found \(result.entities.count) entities:\n\n"
             for entity in result.entities {
                 output += "- **\(entity.label)** (\(entity.type), score: \(entity.score))\n"
@@ -109,14 +130,51 @@ public enum MemoryMCP {
         }
     }
 
+    // MARK: - Store
+
     private static func handleStore(params: CallTool.Parameters, service: MemoryService) async -> CallTool.Result {
-        guard let text = params.arguments?["text"]?.stringValue else {
-            return .init(content: [.text("Missing required argument: text")], isError: true)
+        var batch = MemoryBatch()
+        var entityCount = 0
+        var relationshipCount = 0
+
+        // Parse entities
+        if let entitiesValue = params.arguments?["entities"], let entities = entitiesValue.arrayValue {
+            for entityValue in entities {
+                guard let obj = entityValue.objectValue,
+                      let type = obj["type"]?.stringValue,
+                      let data = obj["data"] else { continue }
+
+                do {
+                    let jsonData = try JSONEncoder().encode(data)
+                    if let entity = try await service.decodeEntity(type: type, from: jsonData) {
+                        batch.entity(entity)
+                        entityCount += 1
+                    }
+                } catch {
+                    continue
+                }
+            }
+        }
+
+        // Parse relationships
+        if let relsValue = params.arguments?["relationships"], let rels = relsValue.arrayValue {
+            for rel in rels {
+                guard let obj = rel.objectValue,
+                      let subject = obj["subject"]?.stringValue,
+                      let predicate = obj["predicate"]?.stringValue,
+                      let object = obj["object"]?.stringValue else { continue }
+                batch.triple(subject, predicate, object)
+                relationshipCount += 1
+            }
+        }
+
+        guard !batch.entities.isEmpty || !batch.statements.isEmpty else {
+            return .init(content: [.text("Nothing to store")], isError: false)
         }
 
         do {
-            try await service.store(text)
-            return .init(content: [.text("Stored in memory")], isError: false)
+            try await service.store(batch)
+            return .init(content: [.text("Stored \(entityCount) entities, \(relationshipCount) relationships")], isError: false)
         } catch {
             return .init(content: [.text("Store failed: \(error.localizedDescription)")], isError: true)
         }
