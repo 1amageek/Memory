@@ -25,7 +25,7 @@ let server = Server(
 // Standalone server: store config with empty schema (client must provide via HTTP server)
 let storeConfig = StoreToolConfig(
     inputSchema: .object(["type": "object"]),
-    decode: { _ in .empty }
+    decode: { _, _ in .empty }
 )
 
 await MemoryMCP.registerTools(on: server, service: service, storeConfig: storeConfig)

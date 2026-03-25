@@ -12,10 +12,10 @@ public struct StoreToolConfig: Sendable {
     /// JSON Schema for the store tool input (from @Generable GenerationSchema).
     public let inputSchema: Value
 
-    /// Decode JSON data into a MemoryBatchConvertible, then convert to MemoryBatch.
-    public let decode: @Sendable (Data) throws -> MemoryBatch
+    /// Decode JSON data into a MemoryBatch, linking entities to givenID.
+    public let decode: @Sendable (Data, String) throws -> MemoryBatch
 
-    public init(inputSchema: Value, decode: @escaping @Sendable (Data) throws -> MemoryBatch) {
+    public init(inputSchema: Value, decode: @escaping @Sendable (Data, String) throws -> MemoryBatch) {
         self.inputSchema = inputSchema
         self.decode = decode
     }
@@ -23,9 +23,9 @@ public struct StoreToolConfig: Sendable {
     /// Convenience init from a MemoryBatchConvertible & Codable type.
     public init<T: MemoryBatchConvertible & Codable>(type: T.Type, inputSchema: Value) {
         self.inputSchema = inputSchema
-        self.decode = { data in
+        self.decode = { data, givenID in
             let input = try JSONDecoder().decode(T.self, from: data)
-            return input.toBatch()
+            return input.toBatch(givenID: givenID)
         }
     }
 }
@@ -64,8 +64,18 @@ public enum MemoryMCP {
                 ),
                 Tool(
                     name: "store",
-                    description: "Store structured knowledge in memory. Input must match the JSON Schema. Entities are saved as typed records. Relationships are saved as RDF triples.",
-                    inputSchema: storeConfig.inputSchema
+                    description: "Store structured knowledge in memory. Provide the raw text as 'given' and extracted knowledge as 'knowledge'. Given is saved only when knowledge is non-empty.",
+                    inputSchema: .object([
+                        "type": "object",
+                        "properties": .object([
+                            "given": .object([
+                                "type": "string",
+                                "description": "The raw text from which knowledge was extracted"
+                            ]),
+                            "knowledge": storeConfig.inputSchema
+                        ]),
+                        "required": .array([.string("given"), .string("knowledge")])
+                    ])
                 ),
                 Tool(
                     name: "ontology",
@@ -133,20 +143,16 @@ public enum MemoryMCP {
     // MARK: - Store
 
     private static func handleStore(params: CallTool.Parameters, service: MemoryService, config: StoreToolConfig) async -> CallTool.Result {
-        guard let arguments = params.arguments else {
-            return .init(content: [.text("Missing arguments")], isError: true)
+        guard let arguments = params.arguments,
+              let givenValue = arguments["given"]?.stringValue,
+              let knowledgeValue = arguments["knowledge"] else {
+            return .init(content: [.text("Missing required arguments: given and knowledge")], isError: true)
         }
 
         do {
-            let data = try JSONEncoder().encode(arguments)
-            let batch = try config.decode(data)
-
-            guard !batch.entities.isEmpty || !batch.statements.isEmpty else {
-                return .init(content: [.text("Nothing to store")], isError: false)
-            }
-
-            try await service.store(batch)
-            return .init(content: [.text("Stored \(batch.entities.count) entities, \(batch.statements.count) relationships")], isError: false)
+            let knowledgeData = try JSONEncoder().encode(knowledgeValue)
+            try await service.store(given: givenValue, knowledgeData: knowledgeData, decode: config.decode)
+            return .init(content: [.text("Stored successfully")], isError: false)
         } catch {
             return .init(content: [.text("Store failed: \(error.localizedDescription)")], isError: true)
         }

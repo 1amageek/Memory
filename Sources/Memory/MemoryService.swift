@@ -34,6 +34,11 @@ public actor MemoryService {
         try await memory.store(batch)
     }
 
+    /// Store Given + Knowledge from MCP tool call.
+    public func store(given: String, knowledgeData: Data, decode: @Sendable (Data, String) throws -> MemoryBatch) async throws {
+        try await memory.store(given: given, knowledgeData: knowledgeData, decode: decode)
+    }
+
     // MARK: - Ontology
 
     public func ontologyHOOT() async -> String {
