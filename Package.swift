@@ -50,5 +50,18 @@ let package = Package(
             name: "MemoryTests",
             dependencies: ["Memory"]
         ),
+        .testTarget(
+            name: "MemoryMCPHTTPTests",
+            dependencies: [
+                "MemoryMCPHTTP",
+                "Memory",
+                "MemoryMCP",
+                .product(name: "SwiftMemory", package: "swift-memory"),
+                .product(name: "MCP", package: "swift-sdk"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+            ]
+        ),
     ]
 )
