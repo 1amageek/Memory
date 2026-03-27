@@ -5,7 +5,7 @@ import Testing
 import Foundation
 @testable import MemoryMCPHTTP
 import Memory
-import MemoryMCP
+@testable import MemoryMCP
 import MCP
 import SwiftMemory
 
