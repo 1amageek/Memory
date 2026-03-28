@@ -49,10 +49,13 @@ extension Generable {
 
 /// In-process HTTP MCP server for Memory.
 ///
-/// Provides three MCP tools:
+/// Provides two MCP tools:
 /// - **recall** — spreading activation search on the knowledge graph
 /// - **store** — persist structured knowledge (entities + relationships)
-/// - **ontology** — return available classes and properties in HOOT format
+///
+/// Ontology constraints are embedded in the `store` tool's description
+/// so the agent receives both structure (inputSchema) and semantics (HOOT)
+/// in a single `tools/list` round trip.
 ///
 /// ```swift
 /// let server = MemoryMCPHTTPServer(memory: memory, entityTypes: entityTypes)
@@ -183,6 +186,17 @@ public actor MemoryMCPHTTPServer {
         let recallSchema = try RecallInput.schemaValue()
         let storeSchema = buildStoreInputSchema(knowledgeSchema: knowledgeSchema)
 
+        // Build HOOT at registration time — embedded in store description
+        let hoot = memoryRef.ontologyPolicy.buildOntology().toHoot(mode: .compact)
+        let storeDescription = """
+        Store structured knowledge in memory. \
+        The inputSchema defines the structure (what fields to pass). \
+        The ontology below defines the semantic constraints (class hierarchy, disjoint classes, valid predicates, transitivity, domain/range).
+
+        ## Ontology Constraints (HOOT)
+        \(hoot)
+        """
+
         await server.withMethodHandler(ListTools.self) { _ in
             .init(tools: [
                 Tool(
@@ -192,13 +206,8 @@ public actor MemoryMCPHTTPServer {
                 ),
                 Tool(
                     name: "store",
-                    description: "Store structured knowledge in memory. Call ontology() first to discover available entity types and properties.",
+                    description: storeDescription,
                     inputSchema: storeSchema
-                ),
-                Tool(
-                    name: "ontology",
-                    description: "Get the ontology definition in HOOT compact format. Returns available classes, properties, and axioms.",
-                    inputSchema: .object(["type": "object", "properties": .object([:])])
                 )
             ])
         }
@@ -212,9 +221,6 @@ public actor MemoryMCPHTTPServer {
                 return await self.handleRecall(params: params, memory: memoryRef)
             case "store":
                 return await self.handleStore(params: params, memory: memoryRef, entityTypes: entityTypesRef)
-            case "ontology":
-                let hoot = memoryRef.ontologyPolicy.buildOntology().toHoot(mode: .compact)
-                return .init(content: [.text(text: hoot, annotations: nil, _meta: nil)], isError: false)
             default:
                 return .init(content: [.text(text: "Unknown tool: \(params.name)", annotations: nil, _meta: nil)], isError: true)
             }
