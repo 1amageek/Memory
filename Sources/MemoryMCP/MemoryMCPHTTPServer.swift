@@ -13,27 +13,6 @@ import Logging
 
 // MARK: - MemoryStorable Protocol
 
-/// Entity type that can be stored via MCP store tool.
-///
-/// Requires @Generable for JSON decode and schema generation.
-/// Generation is used internally — callers just conform their types.
-///
-/// ```swift
-/// @Persistable @Generable
-/// struct Person { ... }
-///
-/// extension Person: MemoryStorable {
-///     public static let storeKey = "persons"
-/// }
-/// ```
-public protocol MemoryStorable: Persistable, Generable, Sendable {
-    /// JSON key in the knowledge object (e.g. "persons", "organizations").
-    static var storeKey: String { get }
-
-    /// Link to the source Given record.
-    var givenID: String { get set }
-}
-
 // MARK: - Generable -> Value
 
 extension Generable {
@@ -212,16 +191,23 @@ public actor MemoryMCPHTTPServer {
             ])
         }
 
+        let loggerRef = logger
         await server.withMethodHandler(CallTool.self) { [weak self] params in
             guard let self else {
                 return .init(content: [.text(text: "Server shutting down", annotations: nil, _meta: nil)], isError: true)
             }
+            loggerRef.info("[MCP] CallTool: \(params.name)")
             switch params.name {
             case "recall":
-                return await self.handleRecall(params: params, memory: memoryRef)
+                let result = await self.handleRecall(params: params, memory: memoryRef)
+                loggerRef.info("[MCP] recall result: isError=\(result.isError ?? false)")
+                return result
             case "store":
-                return await self.handleStore(params: params, memory: memoryRef, entityTypes: entityTypesRef)
+                let result = await self.handleStore(params: params, memory: memoryRef, entityTypes: entityTypesRef)
+                loggerRef.info("[MCP] store result: isError=\(result.isError ?? false)")
+                return result
             default:
+                loggerRef.warning("[MCP] Unknown tool: \(params.name)")
                 return .init(content: [.text(text: "Unknown tool: \(params.name)", annotations: nil, _meta: nil)], isError: true)
             }
         }
@@ -231,17 +217,20 @@ public actor MemoryMCPHTTPServer {
 
     private func handleRecall(params: CallTool.Parameters, memory: SwiftMemory.Memory) async -> CallTool.Result {
         do {
-            let args: Value = .object(params.arguments ?? [:])
-            let jsonData = try JSONEncoder().encode(args)
-            let jsonString = String(data: jsonData, encoding: .utf8) ?? "{}"
-            let input = try RecallInput(GeneratedContent(json: jsonString))
+            let arguments = params.arguments ?? [:]
 
-            let keywords = input.keywords
+            let keywords: [String] = arguments["keywords"]?.arrayValue?.compactMap(\.stringValue) ?? []
             guard !keywords.isEmpty else {
+                logger.warning("[MCP] recall: empty keywords")
                 return .init(content: [.text(text: "Missing required argument: keywords", annotations: nil, _meta: nil)], isError: true)
             }
 
-            let result = try await memory.recall(keywords: keywords, maxHops: input.maxHops, limit: input.limit)
+            let maxHops = arguments["maxHops"]?.intValue ?? 2
+            let limit = arguments["limit"]?.intValue ?? 20
+
+            logger.info("[MCP] recall: keywords=\(keywords) maxHops=\(maxHops) limit=\(limit)")
+            let result = try await memory.recall(keywords: keywords, maxHops: maxHops, limit: limit)
+            logger.info("[MCP] recall: found \(result.entities.count) entities")
             if result.entities.isEmpty {
                 return .init(content: [.text(text: "No entities found for: \(keywords.joined(separator: ", "))", annotations: nil, _meta: nil)], isError: false)
             }
@@ -254,6 +243,7 @@ public actor MemoryMCPHTTPServer {
             }
             return .init(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
         } catch {
+            logger.error("[MCP] recall failed: \(error)")
             return .init(content: [.text(text: "Recall failed: \(error.localizedDescription)", annotations: nil, _meta: nil)], isError: true)
         }
     }
@@ -268,18 +258,26 @@ public actor MemoryMCPHTTPServer {
         guard let arguments = params.arguments,
               let givenText = arguments["given"]?.stringValue,
               let knowledgeValue = arguments["knowledge"] else {
+            logger.warning("[MCP] store: missing required arguments")
             return .init(content: [.text(text: "Missing required arguments: given and knowledge", annotations: nil, _meta: nil)], isError: true)
         }
+
+        logger.info("[MCP] store: given=\(givenText.prefix(100))...")
 
         do {
             let jsonData = try JSONEncoder().encode(knowledgeValue)
             let capturedTypes = entityTypes
+            let loggerRef = logger
 
             try await memory.store(given: givenText, knowledgeData: jsonData) { data, givenID in
-                try Self.decodeKnowledge(data, entityTypes: capturedTypes, givenID: givenID)
+                let batch = try Self.decodeKnowledge(data, entityTypes: capturedTypes, givenID: givenID)
+                loggerRef.info("[MCP] store: decoded \(batch.entities.count) entities, \(batch.statements.count) statements, givenID=\(givenID)")
+                return batch
             }
+            logger.info("[MCP] store: success")
             return .init(content: [.text(text: "Stored successfully", annotations: nil, _meta: nil)], isError: false)
         } catch {
+            logger.error("[MCP] store failed: \(error)")
             return .init(content: [.text(text: "Store failed: \(error.localizedDescription)", annotations: nil, _meta: nil)], isError: true)
         }
     }
@@ -301,6 +299,7 @@ public actor MemoryMCPHTTPServer {
             let elements = try arrayContent.elements()
             for element in elements {
                 var entity = try type.init(element)
+                entity.applyStableID()
                 entity.givenID = givenID
                 batch.entity(entity)
             }
@@ -315,30 +314,6 @@ public actor MemoryMCPHTTPServer {
 
         return batch
     }
-}
-
-// MARK: - MCP Tool Input Types
-
-@Generable(description: "Recall associated knowledge from memory via spreading activation")
-struct RecallInput {
-    @Guide(description: "Keywords to search for. Entities reached from multiple keywords score higher.")
-    var keywords: [String] = []
-
-    @Guide(description: "Graph traversal depth. Default: 2")
-    var maxHops: Int = 2
-
-    @Guide(description: "Max results. Default: 20")
-    var limit: Int = 20
-}
-
-@Generable(description: "A relationship between two entities")
-struct ExtractedRelationship {
-    @Guide(description: "Subject entity name")
-    var subject: String = ""
-    @Guide(description: "Predicate IRI (e.g. ex:worksAt)")
-    var predicate: String = ""
-    @Guide(description: "Object entity name")
-    var object: String = ""
 }
 
 // MARK: - NIO HTTP Handler
