@@ -25,9 +25,6 @@ public protocol MemoryStorable: Persistable, Generable, Sendable {
     /// JSON key in the knowledge object (e.g. "persons", "organizations").
     static var storeKey: String { get }
 
-    /// Link to the source Given record.
-    var givenID: String { get set }
-
     /// The primary label used for deduplication.
     /// Entities with the same type and label are treated as the same entity.
     var label: String { get }

@@ -138,8 +138,8 @@ private func handleStore(
         let jsonData = try JSONEncoder().encode(knowledgeValue)
         let capturedTypes = entityTypes
 
-        try await memory.store(given: givenText, knowledgeData: jsonData) { data, givenID in
-            try decodeKnowledge(data, entityTypes: capturedTypes, givenID: givenID)
+        try await memory.store(given: givenText, knowledgeData: jsonData) { data in
+            try decodeKnowledge(data, entityTypes: capturedTypes)
         }
         return .init(content: [.text(text: "Stored successfully", annotations: nil, _meta: nil)], isError: false)
     } catch {
@@ -151,8 +151,7 @@ private func handleStore(
 
 private func decodeKnowledge(
     _ data: Data,
-    entityTypes: [any MemoryStorable.Type],
-    givenID: String
+    entityTypes: [any MemoryStorable.Type]
 ) throws -> MemoryBatch {
     let jsonString = String(data: data, encoding: .utf8) ?? "{}"
     let root = try GeneratedContent(json: jsonString)
@@ -164,7 +163,7 @@ private func decodeKnowledge(
         let elements = try arrayContent.elements()
         for element in elements {
             var entity = try type.init(element)
-            entity.givenID = givenID
+            entity.applyStableID()
             batch.entity(entity)
         }
     }

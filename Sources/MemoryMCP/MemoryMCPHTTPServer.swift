@@ -269,9 +269,9 @@ public actor MemoryMCPHTTPServer {
             let capturedTypes = entityTypes
             let loggerRef = logger
 
-            try await memory.store(given: givenText, knowledgeData: jsonData) { data, givenID in
-                let batch = try Self.decodeKnowledge(data, entityTypes: capturedTypes, givenID: givenID)
-                loggerRef.info("[MCP] store: decoded \(batch.entities.count) entities, \(batch.statements.count) statements, givenID=\(givenID)")
+            try await memory.store(given: givenText, knowledgeData: jsonData) { data in
+                let batch = try Self.decodeKnowledge(data, entityTypes: capturedTypes)
+                loggerRef.info("[MCP] store: decoded \(batch.entities.count) entities, \(batch.statements.count) statements")
                 return batch
             }
             logger.info("[MCP] store: success")
@@ -286,8 +286,7 @@ public actor MemoryMCPHTTPServer {
 
     private static func decodeKnowledge(
         _ data: Data,
-        entityTypes: [any MemoryStorable.Type],
-        givenID: String
+        entityTypes: [any MemoryStorable.Type]
     ) throws -> MemoryBatch {
         let jsonString = String(data: data, encoding: .utf8) ?? "{}"
         let root = try GeneratedContent(json: jsonString)
@@ -300,7 +299,6 @@ public actor MemoryMCPHTTPServer {
             for element in elements {
                 var entity = try type.init(element)
                 entity.applyStableID()
-                entity.givenID = givenID
                 batch.entity(entity)
             }
         }
