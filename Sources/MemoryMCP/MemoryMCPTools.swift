@@ -4,7 +4,7 @@
 import Foundation
 import MCP
 import SwiftMemory
-@_spi(Internal) import Generation
+@_spi(Internal) import SwiftGeneration
 import Database
 
 // MARK: - Tool Registration

@@ -4,7 +4,7 @@
 import Foundation
 import MCP
 import Database
-@_spi(Internal) import Generation
+@_spi(Internal) import SwiftGeneration
 
 // MARK: - MemoryStorable Protocol
 
