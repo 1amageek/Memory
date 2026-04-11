@@ -1,5 +1,5 @@
 {
-  "originHash" : "b4266059b94f9d42e65b82962d2a8710cfe2ddf2218d5bdbd32a4f4751660e2e",
+  "originHash" : "7fe5c34743c802054156460c7462ff58aa2b26de4c93ddf7fe945d29f24df209",
   "pins" : [
     {
       "identity" : "database-framework",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/database-kit.git",
       "state" : {
-        "revision" : "1e54af6e07d5e2cd7efb73cb08abe0308a6ae382",
-        "version" : "26.324.1"
+        "revision" : "092e90b591cf3a4836bb0509672bf8d5f50a790f",
+        "version" : "26.411.2"
       }
     },
     {
@@ -187,7 +187,7 @@
       "location" : "https://github.com/1amageek/swift-memory.git",
       "state" : {
         "branch" : "main",
-        "revision" : "116dee9767f4b0aa25284ca744dc338484ebfbf2"
+        "revision" : "8d849cb7e584366968a91d0588f5ce16aa880721"
       }
     },
     {
@@ -204,8 +204,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "bdf004b44f77c56fca752cd1cf243c802f8469c9",
-        "version" : "2.97.0"
+        "revision" : "558f24a4647193b5a0e2104031b71c55d31ff83a",
+        "version" : "2.97.1"
       }
     },
     {

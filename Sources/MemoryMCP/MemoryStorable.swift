@@ -32,6 +32,13 @@ public protocol MemoryStorable: Persistable, Generable, Sendable {
     /// Apply a deterministic ID derived from type + label.
     /// Inserting an entity with an existing stable ID overwrites the previous record (upsert).
     mutating func applyStableID()
+
+    /// Additional context for entity resolution embedding.
+    ///
+    /// Override to include discriminating properties (domain, email, etc.)
+    /// that help distinguish entities with similar names.
+    /// Used to construct embedding text: "{storeKey} {label} {resolutionContext}".
+    func resolutionContext() -> String
 }
 
 extension MemoryStorable {
@@ -41,5 +48,8 @@ extension MemoryStorable {
         guard !trimmed.isEmpty else { return nil }
         return "\(Self.storeKey)/\(trimmed.lowercased())"
     }
+
+    /// Default implementation returns empty string (no additional context).
+    public func resolutionContext() -> String { "" }
 }
 
