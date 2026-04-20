@@ -14,10 +14,7 @@ let package = Package(
         .package(url: "https://github.com/1amageek/swift-generation.git", from: "0.5.0"),
         .package(url: "https://github.com/modelcontextprotocol/swift-sdk.git", branch: "main"),
         .package(url: "https://github.com/1amageek/database-framework.git", branch: "main", traits: ["SQLite"]),
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.97.0"),
-        .package(url: "https://github.com/1amageek/mlx-swift-lm.git", branch: "main"),
-        .package(url: "https://github.com/ml-explore/mlx-swift", from: "0.31.0"),
-        .package(url: "https://github.com/DePasqualeOrg/swift-tokenizers.git", from: "0.3.2"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.97.1"),
     ],
     targets: [
         .target(
@@ -36,10 +33,6 @@ let package = Package(
             name: "MemoryEmbedding",
             dependencies: [
                 .product(name: "SwiftMemory", package: "swift-memory"),
-                .product(name: "MLXEmbedders", package: "mlx-swift-lm"),
-                .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
-                .product(name: "MLX", package: "mlx-swift"),
-                .product(name: "Tokenizers", package: "swift-tokenizers"),
             ]
         ),
         .testTarget(
@@ -51,6 +44,12 @@ let package = Package(
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
+            ]
+        ),
+        .testTarget(
+            name: "MemoryEmbeddingTests",
+            dependencies: [
+                "MemoryEmbedding",
             ]
         ),
     ]
