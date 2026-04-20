@@ -1,5 +1,5 @@
 {
-  "originHash" : "7fe5c34743c802054156460c7462ff58aa2b26de4c93ddf7fe945d29f24df209",
+  "originHash" : "9a3bc6ee99ef374081971ed4b79e5f81ed1833015cd3eb0db3818b21160a3b73",
   "pins" : [
     {
       "identity" : "database-framework",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/1amageek/database-framework.git",
       "state" : {
         "branch" : "main",
-        "revision" : "534a9b5063a7c5060d9104cfed1ae5dcd5d89487"
+        "revision" : "e9defd626b03d6f027065c452eb4a0ff0258cf73"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/database-kit.git",
       "state" : {
-        "revision" : "092e90b591cf3a4836bb0509672bf8d5f50a790f",
-        "version" : "26.411.2"
+        "revision" : "5fe7c795231d5a7651152bb085ce060f96526149",
+        "version" : "26.418.0"
       }
     },
     {
@@ -38,24 +38,6 @@
       }
     },
     {
-      "identity" : "mlx-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ml-explore/mlx-swift",
-      "state" : {
-        "revision" : "61b9e011e09a62b489f6bd647958f1555bdf2896",
-        "version" : "0.31.3"
-      }
-    },
-    {
-      "identity" : "mlx-swift-lm",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/1amageek/mlx-swift-lm.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "00fd7c8ad76948f0e3d8d8ca2b4083c1feeaad02"
-      }
-    },
-    {
       "identity" : "postgres-nio",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/vapor/postgres-nio.git",
@@ -69,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/storage-kit.git",
       "state" : {
-        "revision" : "a92f62eeb7084b92618869334f3a73ac52e98ac0",
-        "version" : "26.324.1"
+        "branch" : "main",
+        "revision" : "cd04861c57182e207b8056e06d93c1b18deeeb5e"
       }
     },
     {
@@ -150,8 +132,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/swift-hnsw.git",
       "state" : {
-        "revision" : "e6af4bb515e11981bb7c2fe8c356a97b0fc3fc77",
-        "version" : "0.2.1"
+        "revision" : "73ffbc10b587ca1c1c9203a580b8d4de7878a26e",
+        "version" : "0.4.0"
       }
     },
     {
@@ -161,15 +143,6 @@
       "state" : {
         "revision" : "01e47a265ecfc6590f9b2a124ed993bec896731a",
         "version" : "0.3.0"
-      }
-    },
-    {
-      "identity" : "swift-jinja",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/huggingface/swift-jinja.git",
-      "state" : {
-        "revision" : "0aeefadec459ce8e11a333769950fb86183aca43",
-        "version" : "2.3.5"
       }
     },
     {
@@ -187,7 +160,7 @@
       "location" : "https://github.com/1amageek/swift-memory.git",
       "state" : {
         "branch" : "main",
-        "revision" : "8d849cb7e584366968a91d0588f5ce16aa880721"
+        "revision" : "9f6b04bba4ae7c1085243974cd44d0aaf2a8a109"
       }
     },
     {
@@ -227,15 +200,6 @@
       }
     },
     {
-      "identity" : "swift-numerics",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-numerics",
-      "state" : {
-        "revision" : "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
-        "version" : "1.1.1"
-      }
-    },
-    {
       "identity" : "swift-sdk",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/modelcontextprotocol/swift-sdk.git",
@@ -272,30 +236,12 @@
       }
     },
     {
-      "identity" : "swift-tokenizers",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/DePasqualeOrg/swift-tokenizers.git",
-      "state" : {
-        "revision" : "29ded3de60b196bcaf3d6a05d8f5a131bdc16b9b",
-        "version" : "0.3.2"
-      }
-    },
-    {
       "identity" : "swift-yaml",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/swift-yaml.git",
       "state" : {
         "branch" : "main",
         "revision" : "8a33d36bca390d9518d5f7e483cbbaa011da5f76"
-      }
-    },
-    {
-      "identity" : "yyjson",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ibireme/yyjson.git",
-      "state" : {
-        "revision" : "8b4a38dc994a110abaec8a400615567bd996105f",
-        "version" : "0.12.0"
       }
     }
   ],
