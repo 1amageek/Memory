@@ -4,52 +4,41 @@
 import Foundation
 import MCP
 import Database
+import SwiftMemory
 @_spi(Internal) import SwiftGeneration
 
 // MARK: - MemoryStorable Protocol
 
-/// Entity type that can be stored via MCP store tool.
+/// Entity type that can be stored via MCP `store` tool.
 ///
-/// Requires @Generable for JSON decode and schema generation.
-/// Generation is used internally — callers just conform their types.
+/// Combines three requirements:
+/// - `Persistable` — for FDB persistence
+/// - `Entity` — for polymorphic storage + embedding-based resolution
+///   (contributes `label` and `embedding`; deduplication logic lives in
+///   `SwiftMemory.Memory.store()`)
+/// - `Generable` — for JSON decode + MCP schema generation
+///
+/// The only additional responsibility of this protocol is mapping the type to
+/// its JSON key inside the `knowledge` object received by the `store` tool.
 ///
 /// ```swift
-/// @Persistable @Generable
-/// struct Person { ... }
+/// @Persistable @Generable @OWLClass("ex:Person")
+/// struct Person: Entity {
+///     #Directory<Person>("bob", "persons")
+///     var id: String = ULID().ulidString
+///     var name: String
+///     var embedding: [Float] = []
+///     var label: String { name }
+/// }
 ///
 /// extension Person: MemoryStorable {
 ///     public static let storeKey = "persons"
 /// }
 /// ```
-public protocol MemoryStorable: Persistable, Generable, Sendable {
+public protocol MemoryStorable: Persistable, Entity, Generable {
     /// JSON key in the knowledge object (e.g. "persons", "organizations").
-    static var storeKey: String { get }
-
-    /// The primary label used for deduplication.
-    /// Entities with the same type and label are treated as the same entity.
-    var label: String { get }
-
-    /// Apply a deterministic ID derived from type + label.
-    /// Inserting an entity with an existing stable ID overwrites the previous record (upsert).
-    mutating func applyStableID()
-
-    /// Additional context for entity resolution embedding.
     ///
-    /// Override to include discriminating properties (domain, email, etc.)
-    /// that help distinguish entities with similar names.
-    /// Used to construct embedding text: "{storeKey} {label} {resolutionContext}".
-    func resolutionContext() -> String
+    /// Used by the MCP `store` tool to locate this entity type's array inside
+    /// the incoming knowledge payload.
+    static var storeKey: String { get }
 }
-
-extension MemoryStorable {
-    /// Compute the stable ID string from label. Returns nil if label is empty.
-    public func computeStableID() -> String? {
-        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return "\(Self.storeKey)/\(trimmed.lowercased())"
-    }
-
-    /// Default implementation returns empty string (no additional context).
-    public func resolutionContext() -> String { "" }
-}
-

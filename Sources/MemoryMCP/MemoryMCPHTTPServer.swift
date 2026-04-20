@@ -297,8 +297,7 @@ public actor MemoryMCPHTTPServer {
             guard let arrayContent = props[type.storeKey] else { continue }
             let elements = try arrayContent.elements()
             for element in elements {
-                var entity = try type.init(element)
-                entity.applyStableID()
+                let entity = try type.init(element)
                 batch.entity(entity)
             }
         }

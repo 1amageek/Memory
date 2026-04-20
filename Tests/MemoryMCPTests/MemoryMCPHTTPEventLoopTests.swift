@@ -3,8 +3,6 @@
 
 import Testing
 import Foundation
-@testable import MemoryMCPHTTP
-import Memory
 @testable import MemoryMCP
 import MCP
 import SwiftMemory
@@ -20,12 +18,11 @@ struct MemoryMCPHTTPEventLoopTests {
     // MARK: - Helpers
 
     private func makeServer() async throws -> (server: MemoryMCPHTTPServer, port: Int) {
-        let service = try await MemoryService(path: nil)
-        let storeConfig = StoreToolConfig(
-            inputSchema: .object(["type": "object", "properties": .object([:])]),
-            decode: { _, _ in MemoryBatch.empty }
+        let memory = try await Memory(path: nil)
+        let server = MemoryMCPHTTPServer(
+            memory: memory,
+            entityTypes: [] as [any MemoryStorable.Type]
         )
-        let server = MemoryMCPHTTPServer(service: service, storeConfig: storeConfig)
         let port = try await server.start()
         return (server, port)
     }
@@ -315,7 +312,11 @@ struct MemoryMCPHTTPEventLoopTests {
         await server.stop()
 
         // The tool call may succeed or fail — we only care that no crash occurs
-        _ = try? await toolCall
+        do {
+            _ = try await toolCall
+        } catch {
+            // Request may fail because the server was stopped during processing.
+        }
     }
 }
 
