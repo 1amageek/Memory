@@ -392,13 +392,10 @@ private final class MCPHTTPHandler: ChannelInboundHandler, @unchecked Sendable {
             body = nil
         }
 
-        let path = String(state.head.uri.split(separator: "?").first ?? Substring(state.head.uri))
-
         return MCP.HTTPRequest(
             method: state.head.method.rawValue,
             headers: headers,
-            body: body,
-            path: path
+            body: body
         )
     }
 

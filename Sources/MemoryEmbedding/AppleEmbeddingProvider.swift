@@ -13,8 +13,8 @@ private let logger = Logger(subsystem: "com.memory", category: "AppleEmbedding")
 ///
 /// `NLContextualEmbedding` produces token-level contextual vectors. This
 /// provider mean-pools tokens into a single sentence vector and then
-/// truncates + L2-normalizes to `dimensions` to satisfy
-/// `Entity.embeddingDimensions` (256).
+/// L2-normalizes to produce a `dimensions`-length embedding matching
+/// `Entity.embeddingDimensions` (default 512, the native dimension).
 ///
 /// The underlying model is language/script-scoped. Select the language that
 /// matches the primary content you store. One `NLContextualEmbedding` instance
@@ -27,7 +27,7 @@ public actor AppleEmbeddingProvider: EmbeddingProvider {
     private let language: NLLanguage
     private var model: NLContextualEmbedding?
 
-    public init(language: NLLanguage = .english, dimensions: Int = 256) {
+    public init(language: NLLanguage = .english, dimensions: Int = 512) {
         self.language = language
         self.dimensions = dimensions
     }

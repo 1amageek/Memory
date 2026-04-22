@@ -1,5 +1,5 @@
 {
-  "originHash" : "4cbd40dd810250bf97c420a1cb13a0b4c43f8c940cf30468b9f95907b3c263a1",
+  "originHash" : "c5bfc716ab6f815839db19bd0f4b6ea923e6d718bf073b0764ae1b7dcf39a536",
   "pins" : [
     {
       "identity" : "database-framework",
@@ -35,6 +35,15 @@
       "state" : {
         "revision" : "cfa638d6801ebf1853278b5884564949c40be4fa",
         "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "mcp-swift-sdk",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/1amageek/mcp-swift-sdk.git",
+      "state" : {
+        "branch" : "fix/network-transport-data-race",
+        "revision" : "06d3ab02004456845606ae593d1e4d86cd73ad40"
       }
     },
     {
@@ -159,8 +168,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/swift-memory.git",
       "state" : {
-        "revision" : "7c7eaece13293b7d15f2b7d58001ccb6d3d0264d",
-        "version" : "26.422.0"
+        "revision" : "a47a18ac23aa01121707b3819f600a423e80a53e",
+        "version" : "26.423.0"
       }
     },
     {
@@ -197,15 +206,6 @@
       "state" : {
         "revision" : "9d4e67af1eea85967c7de778ad73e7776e5f1f22",
         "version" : "1.27.0"
-      }
-    },
-    {
-      "identity" : "swift-sdk",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/modelcontextprotocol/swift-sdk.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "cb6a62f7c266ed535792b3e9e6e05dc3f0dac8e4"
       }
     },
     {
