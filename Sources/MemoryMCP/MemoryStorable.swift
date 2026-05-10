@@ -41,4 +41,17 @@ public protocol MemoryStorable: Persistable, Entity, Generable {
     /// Used by the MCP `store` tool to locate this entity type's array inside
     /// the incoming knowledge payload.
     static var storeKey: String { get }
+
+    /// Human-facing name used by agents when they write relationships.
+    var label: String { get }
+
+    /// Additional names that should resolve to this entity in relationship
+    /// endpoints during a single store operation.
+    var referenceAliases: [String] { get }
+}
+
+public extension MemoryStorable {
+    var referenceAliases: [String] {
+        [label, assertion].filter { !$0.isEmpty }
+    }
 }

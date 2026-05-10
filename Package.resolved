@@ -1,6 +1,24 @@
 {
-  "originHash" : "091520c39011db49b630a069b74c7a60f8449c877960c1ea329f3e82826dd7a2",
+  "originHash" : "7d708efc9ff7464eb2b06453f53b208460a4865e5995d1509af154495104934c",
   "pins" : [
+    {
+      "identity" : "database-framework",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/1amageek/database-framework.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "b16bdd13c7b898406857ee93138d2c190fe45c47"
+      }
+    },
+    {
+      "identity" : "database-kit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/1amageek/database-kit.git",
+      "state" : {
+        "revision" : "ec45a7df820838c440325cc0b6390aa0f1804063",
+        "version" : "26.510.0"
+      }
+    },
     {
       "identity" : "eventsource",
       "kind" : "remoteSourceControl",
@@ -43,7 +61,7 @@
       "location" : "https://github.com/1amageek/mlx-swift-lm.git",
       "state" : {
         "branch" : "main",
-        "revision" : "6da50730f972a743204caf79bd70c41ee541aeaf"
+        "revision" : "3e5e0f1d9e056ea28a2318044043a8f6679bb510"
       }
     },
     {
@@ -123,8 +141,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-crypto.git",
       "state" : {
-        "revision" : "476538ccb827f2dd18efc5de754cc87d77127a47",
-        "version" : "4.4.0"
+        "revision" : "1b6b2e274e85105bfa155183145a1dcfd63331f1",
+        "version" : "4.5.0"
       }
     },
     {
@@ -182,6 +200,15 @@
       }
     },
     {
+      "identity" : "swift-memory",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/1amageek/swift-memory.git",
+      "state" : {
+        "revision" : "7117cba38d594d937603f6574c307a2d635d5295",
+        "version" : "26.424.0"
+      }
+    },
+    {
       "identity" : "swift-metrics",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-metrics.git",
@@ -195,8 +222,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "cd6710454f25733900e133c6caf5188952763c36",
-        "version" : "2.98.0"
+        "revision" : "f71c8d2a5e74a2c6d11a0fbe324774b5d6084237",
+        "version" : "2.99.0"
       }
     },
     {
@@ -213,8 +240,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-transport-services.git",
       "state" : {
-        "revision" : "9d4e67af1eea85967c7de778ad73e7776e5f1f22",
-        "version" : "1.27.0"
+        "revision" : "67787bb645a5e67d2edcdfbe48a216cc549222d5",
+        "version" : "1.28.0"
       }
     },
     {

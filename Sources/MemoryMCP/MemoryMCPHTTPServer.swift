@@ -270,7 +270,7 @@ public actor MemoryMCPHTTPServer {
             let loggerRef = logger
 
             try await memory.store(given: givenText, knowledgeData: jsonData) { data in
-                let batch = try Self.decodeKnowledge(data, entityTypes: capturedTypes)
+                let batch = try MemoryKnowledgeDecoder.decode(data, entityTypes: capturedTypes)
                 loggerRef.info("[MCP] store: decoded \(batch.entities.count) entities, \(batch.statements.count) statements")
                 return batch
             }
@@ -282,35 +282,6 @@ public actor MemoryMCPHTTPServer {
         }
     }
 
-    // MARK: - Knowledge Decode
-
-    private static func decodeKnowledge(
-        _ data: Data,
-        entityTypes: [any MemoryStorable.Type]
-    ) throws -> MemoryBatch {
-        let jsonString = String(data: data, encoding: .utf8) ?? "{}"
-        let root = try GeneratedContent(json: jsonString)
-        let props = try root.properties()
-        var batch = MemoryBatch()
-
-        for type in entityTypes {
-            guard let arrayContent = props[type.storeKey] else { continue }
-            let elements = try arrayContent.elements()
-            for element in elements {
-                let entity = try type.init(element)
-                batch.entity(entity)
-            }
-        }
-
-        if let relsContent = props["relationships"] {
-            for element in try relsContent.elements() {
-                let rel = try ExtractedRelationship(element)
-                batch.triple(rel.subject, rel.predicate, rel.object)
-            }
-        }
-
-        return batch
-    }
 }
 
 // MARK: - NIO HTTP Handler

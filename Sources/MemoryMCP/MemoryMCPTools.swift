@@ -139,42 +139,12 @@ private func handleStore(
         let capturedTypes = entityTypes
 
         try await memory.store(given: givenText, knowledgeData: jsonData) { data in
-            try decodeKnowledge(data, entityTypes: capturedTypes)
+            try MemoryKnowledgeDecoder.decode(data, entityTypes: capturedTypes)
         }
         return .init(content: [.text(text: "Stored successfully", annotations: nil, _meta: nil)], isError: false)
     } catch {
         return .init(content: [.text(text: "Store failed: \(error.localizedDescription)", annotations: nil, _meta: nil)], isError: true)
     }
-}
-
-// MARK: - Knowledge Decode
-
-private func decodeKnowledge(
-    _ data: Data,
-    entityTypes: [any MemoryStorable.Type]
-) throws -> MemoryBatch {
-    let jsonString = String(data: data, encoding: .utf8) ?? "{}"
-    let root = try GeneratedContent(json: jsonString)
-    let props = try root.properties()
-    var batch = MemoryBatch()
-
-    for type in entityTypes {
-        guard let arrayContent = props[type.storeKey] else { continue }
-        let elements = try arrayContent.elements()
-        for element in elements {
-            let entity = try type.init(element)
-            batch.entity(entity)
-        }
-    }
-
-    if let relsContent = props["relationships"] {
-        for element in try relsContent.elements() {
-            let rel = try ExtractedRelationship(element)
-            batch.triple(rel.subject, rel.predicate, rel.object)
-        }
-    }
-
-    return batch
 }
 
 // MARK: - MCP Tool Input Types
@@ -193,10 +163,10 @@ struct RecallInput {
 
 @Generable(description: "A relationship between two entities")
 struct ExtractedRelationship {
-    @Guide(description: "Subject entity name")
+    @Guide(description: "Subject endpoint. Use an entity label or id when it refers to an entity; otherwise use the source term.")
     var subject: String = ""
-    @Guide(description: "Predicate IRI (e.g. ex:worksAt)")
+    @Guide(description: "Predicate IRI")
     var predicate: String = ""
-    @Guide(description: "Object entity name")
+    @Guide(description: "Object endpoint. Use an entity label or id when it refers to an entity; otherwise use the source term.")
     var object: String = ""
 }
