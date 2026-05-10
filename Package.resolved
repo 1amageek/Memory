@@ -1,13 +1,13 @@
 {
-  "originHash" : "7d708efc9ff7464eb2b06453f53b208460a4865e5995d1509af154495104934c",
+  "originHash" : "22e13d3ffb07eca626a9d335ad944f40f5dc7177544e61925b5f93d37a534e6d",
   "pins" : [
     {
       "identity" : "database-framework",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/database-framework.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "b16bdd13c7b898406857ee93138d2c190fe45c47"
+        "revision" : "44451fb573bca0dfcc524a211fc5673e9ec92c74",
+        "version" : "26.510.0"
       }
     },
     {
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/mcp-swift-sdk.git",
       "state" : {
-        "branch" : "fix/network-transport-data-race",
-        "revision" : "06d3ab02004456845606ae593d1e4d86cd73ad40"
+        "revision" : "06d3ab02004456845606ae593d1e4d86cd73ad40",
+        "version" : "0.11.1"
       }
     },
     {
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/mlx-swift-lm.git",
       "state" : {
-        "branch" : "main",
-        "revision" : "3e5e0f1d9e056ea28a2318044043a8f6679bb510"
+        "revision" : "3e5e0f1d9e056ea28a2318044043a8f6679bb510",
+        "version" : "0.1.0"
       }
     },
     {

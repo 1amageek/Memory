@@ -12,10 +12,10 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/1amageek/swift-memory.git", from: "26.0424.0"),
         .package(url: "https://github.com/1amageek/swift-generation.git", from: "0.5.0"),
-        .package(url: "https://github.com/1amageek/mcp-swift-sdk.git", branch: "fix/network-transport-data-race"),
-        .package(url: "https://github.com/1amageek/database-framework.git", branch: "main", traits: ["SQLite"]),
+        .package(url: "https://github.com/1amageek/mcp-swift-sdk.git", from: "0.11.1"),
+        .package(url: "https://github.com/1amageek/database-framework.git", from: "26.0510.0", traits: ["SQLite"]),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.97.1"),
-        .package(url: "https://github.com/1amageek/mlx-swift-lm.git", branch: "main"),
+        .package(url: "https://github.com/1amageek/mlx-swift-lm.git", from: "0.1.0"),
         .package(url: "https://github.com/huggingface/swift-transformers.git", from: "1.3.0"),
         .package(url: "https://github.com/huggingface/swift-huggingface.git", from: "0.9.0"),
     ],
