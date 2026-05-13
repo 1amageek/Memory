@@ -1,5 +1,5 @@
 {
-  "originHash" : "4b918c2285d8db9e175740ca4e09907cfdda5c59859c94358e68e94a4c70f3b0",
+  "originHash" : "f3c58f008f8e327fb49a31340b937ffb30db30d81d85c63bf74dd017ff56910d",
   "pins" : [
     {
       "identity" : "database-framework",
@@ -204,8 +204,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1amageek/swift-memory.git",
       "state" : {
-        "revision" : "e07554ae18789a3703370c4473e6b955e14bf29b",
-        "version" : "26.513.0"
+        "revision" : "56fe24f5e40bddb4b1b3a597ada9475939a6b7ed",
+        "version" : "26.513.1"
       }
     },
     {

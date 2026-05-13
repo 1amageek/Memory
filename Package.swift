@@ -10,7 +10,7 @@ let package = Package(
         .library(name: "MemoryEmbedding", targets: ["MemoryEmbedding"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/1amageek/swift-memory.git", from: "26.0513.0"),
+        .package(url: "https://github.com/1amageek/swift-memory.git", from: "26.0513.1"),
         .package(url: "https://github.com/1amageek/swift-generation.git", from: "0.5.0"),
         .package(url: "https://github.com/1amageek/mcp-swift-sdk.git", from: "0.11.1"),
         .package(url: "https://github.com/1amageek/database-framework.git", from: "26.0510.0", traits: ["SQLite"]),

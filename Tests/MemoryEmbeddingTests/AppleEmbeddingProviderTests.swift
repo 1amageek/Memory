@@ -7,11 +7,11 @@ import MemoryEmbedding
 struct AppleEmbeddingProviderTests {
 
     @Test(.timeLimit(.minutes(2)))
-    func englishEmbeddingIsNormalizedTo256() async throws {
+    func englishEmbeddingIsNormalizedTo512() async throws {
         let provider = AppleEmbeddingProvider(language: .english)
         let embedding = try await provider.embed("Bob remembers what matters.")
 
-        #expect(embedding.count == 256)
+        #expect(embedding.count == 512)
         #expect(embedding.contains { $0 != 0 })
 
         let norm = sqrt(embedding.reduce(Float(0)) { $0 + $1 * $1 })
