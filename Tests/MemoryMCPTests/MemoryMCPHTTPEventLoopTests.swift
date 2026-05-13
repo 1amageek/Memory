@@ -155,11 +155,11 @@ struct MemoryMCPHTTPEventLoopTests {
             body: ["jsonrpc": "2.0", "id": 2, "method": "tools/list"]
         )
         #expect(status == 200)
-        // SSE body should contain "recall", "store", "ontology" tool names
+        // SSE body should contain Memory tool names.
         let bodyString = String(decoding: data, as: UTF8.self)
         #expect(bodyString.contains("recall"))
+        #expect(bodyString.contains("resolve"))
         #expect(bodyString.contains("store"))
-        #expect(bodyString.contains("ontology"))
     }
 
     // MARK: - tools/call recall (async MemoryService processing)

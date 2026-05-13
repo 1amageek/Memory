@@ -28,8 +28,9 @@ extension Generable {
 
 /// In-process HTTP MCP server for Memory.
 ///
-/// Provides two MCP tools:
+/// Provides three MCP tools:
 /// - **recall** — spreading activation search on the knowledge graph
+/// - **resolve** — candidate entity resolution with one-hop graph context
 /// - **store** — persist structured knowledge (entities + relationships)
 ///
 /// Ontology constraints are embedded in the `store` tool's description
@@ -138,6 +139,24 @@ public actor MemoryMCPHTTPServer {
         ])
     }
 
+    private func buildResolveInputSchema(knowledgeSchema: Value) -> Value {
+        .object([
+            "type": "object",
+            "properties": .object([
+                "knowledge": knowledgeSchema,
+                "threshold": .object([
+                    "type": "number",
+                    "description": "Cosine similarity threshold for candidate retrieval. Default: 0.9"
+                ]),
+                "limit": .object([
+                    "type": "integer",
+                    "description": "Maximum candidates returned per input entity. Default: 30"
+                ])
+            ]),
+            "required": .array([.string("knowledge")])
+        ])
+    }
+
     private func buildStoreKnowledgeSchema() throws -> Value {
         var properties: [String: Value] = [:]
         for type in entityTypes {
@@ -164,6 +183,7 @@ public actor MemoryMCPHTTPServer {
         let knowledgeSchema = try buildStoreKnowledgeSchema()
         let recallSchema = try RecallInput.schemaValue()
         let storeSchema = buildStoreInputSchema(knowledgeSchema: knowledgeSchema)
+        let resolveSchema = buildResolveInputSchema(knowledgeSchema: knowledgeSchema)
 
         // Build HOOT at registration time — embedded in store description
         let hoot = memoryRef.ontologyPolicy.buildOntology().toHoot(mode: .compact)
@@ -184,6 +204,11 @@ public actor MemoryMCPHTTPServer {
                     inputSchema: recallSchema
                 ),
                 Tool(
+                    name: "resolve",
+                    description: "Resolve candidate entities before storing. Returns top candidate entities with one-hop graph context for Agent identity judgment.",
+                    inputSchema: resolveSchema
+                ),
+                Tool(
                     name: "store",
                     description: storeDescription,
                     inputSchema: storeSchema
@@ -201,6 +226,10 @@ public actor MemoryMCPHTTPServer {
             case "recall":
                 let result = await self.handleRecall(params: params, memory: memoryRef)
                 loggerRef.info("[MCP] recall result: isError=\(result.isError ?? false)")
+                return result
+            case "resolve":
+                let result = await self.handleResolve(params: params, memory: memoryRef, entityTypes: entityTypesRef)
+                loggerRef.info("[MCP] resolve result: isError=\(result.isError ?? false)")
                 return result
             case "store":
                 let result = await self.handleStore(params: params, memory: memoryRef, entityTypes: entityTypesRef)
@@ -250,6 +279,37 @@ public actor MemoryMCPHTTPServer {
 
     // MARK: - Store Handler
 
+    private func handleResolve(
+        params: CallTool.Parameters,
+        memory: SwiftMemory.Memory,
+        entityTypes: [any MemoryStorable.Type]
+    ) async -> CallTool.Result {
+        guard let arguments = params.arguments,
+              let knowledgeValue = arguments["knowledge"] else {
+            logger.warning("[MCP] resolve: missing required argument")
+            return .init(content: [.text(text: "Missing required argument: knowledge", annotations: nil, _meta: nil)], isError: true)
+        }
+
+        do {
+            let jsonData = try JSONEncoder().encode(knowledgeValue)
+            let batch = try MemoryKnowledgeDecoder.decode(jsonData, entityTypes: entityTypes)
+            guard !batch.entities.isEmpty else {
+                return .init(content: [.text(text: "No candidate entities to resolve", annotations: nil, _meta: nil)], isError: false)
+            }
+
+            let threshold = Float(arguments["threshold"]?.doubleValue ?? Double(SwiftMemory.Memory.defaultResolveThreshold))
+            let limit = arguments["limit"]?.intValue ?? SwiftMemory.Memory.defaultResolveLimit
+
+            logger.info("[MCP] resolve: entities=\(batch.entities.count) threshold=\(threshold) limit=\(limit)")
+            let resolved = try await memory.resolve(batch.entities, threshold: threshold, limit: limit)
+            logger.info("[MCP] resolve: resolved \(resolved.count) inputs")
+            return .init(content: [.text(text: Self.formatResolvedEntities(resolved), annotations: nil, _meta: nil)], isError: false)
+        } catch {
+            logger.error("[MCP] resolve failed: \(error)")
+            return .init(content: [.text(text: "Resolve failed: \(error.localizedDescription)", annotations: nil, _meta: nil)], isError: true)
+        }
+    }
+
     private func handleStore(
         params: CallTool.Parameters,
         memory: SwiftMemory.Memory,
@@ -280,6 +340,43 @@ public actor MemoryMCPHTTPServer {
             logger.error("[MCP] store failed: \(error)")
             return .init(content: [.text(text: "Store failed: \(error.localizedDescription)", annotations: nil, _meta: nil)], isError: true)
         }
+    }
+
+    private static func formatResolvedEntities(_ resolved: [ResolvedEntity]) -> String {
+        var output = "Resolved candidate entities: \(resolved.count)\n\n"
+
+        for (index, entity) in resolved.enumerated() {
+            output += "## Input \(index + 1)\n"
+            output += "- assertion: `\(entity.inputAssertion)`\n"
+            if entity.candidates.isEmpty {
+                output += "- candidates: none\n\n"
+                continue
+            }
+
+            for (candidateIndex, candidate) in entity.candidates.enumerated() {
+                output += "\n### Candidate \(candidateIndex + 1)\n"
+                output += "- id: `\(candidate.id)`\n"
+                if !candidate.label.isEmpty {
+                    output += "- label: \(candidate.label)\n"
+                }
+                if !candidate.type.isEmpty {
+                    output += "- type: `\(candidate.type)`\n"
+                }
+                output += "- assertion: `\(candidate.assertion)`\n"
+                output += "- similarity: \(candidate.similarity)\n"
+                if candidate.context.isEmpty {
+                    output += "- 1-hop context: none\n"
+                } else {
+                    output += "- 1-hop context:\n"
+                    for statement in candidate.context {
+                        output += "  - \(statement.direction.rawValue): `\(statement.subject)` `\(statement.predicate)` `\(statement.object)`\n"
+                    }
+                }
+            }
+            output += "\n"
+        }
+
+        return output
     }
 
 }
