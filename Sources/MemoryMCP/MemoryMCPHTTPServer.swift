@@ -150,7 +150,7 @@ public actor MemoryMCPHTTPServer {
                 ]),
                 "limit": .object([
                     "type": "integer",
-                    "description": "Maximum candidates returned per input entity. Default: 30"
+                    "description": "Requested candidate limit. The resolve report is capped to the strongest three candidates per input."
                 ])
             ]),
             "required": .array([.string("knowledge")])
@@ -190,6 +190,7 @@ public actor MemoryMCPHTTPServer {
         let storeDescription = """
         Store structured knowledge in memory. \
         The inputSchema defines the structure (what fields to pass). \
+        Store performs deterministic preflight validation and persists the final payload exactly as provided; it does not perform entity deduplication. \
         The ontology below defines the semantic constraints (class hierarchy, disjoint classes, valid predicates, transitivity, domain/range).
 
         ## Ontology Constraints (HOOT)
@@ -298,12 +299,14 @@ public actor MemoryMCPHTTPServer {
             }
 
             let threshold = Float(arguments["threshold"]?.doubleValue ?? Double(SwiftMemory.Memory.defaultResolveThreshold))
-            let limit = arguments["limit"]?.intValue ?? SwiftMemory.Memory.defaultResolveLimit
+            let requestedLimit = arguments["limit"]?.intValue ?? SwiftMemory.Memory.defaultResolveLimit
+            let resolveSearchLimit = ResolveLimitPolicy.searchLimit(for: requestedLimit)
+            let reportLimit = ResolveLimitPolicy.reportLimit
 
-            logger.info("[MCP] resolve: entities=\(batch.entities.count) threshold=\(threshold) limit=\(limit)")
-            let resolved = try await memory.resolve(batch.entities, threshold: threshold, limit: limit)
+            logger.info("[MCP] resolve: entities=\(batch.entities.count) threshold=\(threshold) requestedLimit=\(requestedLimit) searchLimit=\(resolveSearchLimit) reportLimit=\(reportLimit)")
+            let resolved = try await memory.resolve(batch.entities, threshold: threshold, limit: resolveSearchLimit)
             logger.info("[MCP] resolve: resolved \(resolved.count) inputs")
-            return .init(content: [.text(text: Self.formatResolvedEntities(resolved), annotations: nil, _meta: nil)], isError: false)
+            return .init(content: [.text(text: ResolveReportFormatter.format(resolved, requestedLimit: requestedLimit), annotations: nil, _meta: nil)], isError: false)
         } catch {
             logger.error("[MCP] resolve failed: \(error)")
             return .init(content: [.text(text: "Resolve failed: \(error.localizedDescription)", annotations: nil, _meta: nil)], isError: true)
@@ -326,57 +329,20 @@ public actor MemoryMCPHTTPServer {
 
         do {
             let jsonData = try JSONEncoder().encode(knowledgeValue)
-            let capturedTypes = entityTypes
-            let loggerRef = logger
+            let decoded = try MemoryKnowledgeDecoder.decodeWithDiagnostics(
+                jsonData,
+                entityTypes: entityTypes
+            )
+            try MemoryStorePreflightValidator.validate(decoded)
+            logger.info("[MCP] store: decoded \(decoded.batch.entities.count) entities, \(decoded.batch.statements.count) statements")
 
-            try await memory.store(given: givenText, knowledgeData: jsonData) { data in
-                let batch = try MemoryKnowledgeDecoder.decode(data, entityTypes: capturedTypes)
-                loggerRef.info("[MCP] store: decoded \(batch.entities.count) entities, \(batch.statements.count) statements")
-                return batch
-            }
+            try await memory.store(given: givenText, knowledge: decoded.batch)
             logger.info("[MCP] store: success")
             return .init(content: [.text(text: "Stored successfully", annotations: nil, _meta: nil)], isError: false)
         } catch {
             logger.error("[MCP] store failed: \(error)")
             return .init(content: [.text(text: "Store failed: \(error.localizedDescription)", annotations: nil, _meta: nil)], isError: true)
         }
-    }
-
-    private static func formatResolvedEntities(_ resolved: [ResolvedEntity]) -> String {
-        var output = "Resolved candidate entities: \(resolved.count)\n\n"
-
-        for (index, entity) in resolved.enumerated() {
-            output += "## Input \(index + 1)\n"
-            output += "- assertion: `\(entity.inputAssertion)`\n"
-            if entity.candidates.isEmpty {
-                output += "- candidates: none\n\n"
-                continue
-            }
-
-            for (candidateIndex, candidate) in entity.candidates.enumerated() {
-                output += "\n### Candidate \(candidateIndex + 1)\n"
-                output += "- id: `\(candidate.id)`\n"
-                if !candidate.label.isEmpty {
-                    output += "- label: \(candidate.label)\n"
-                }
-                if !candidate.type.isEmpty {
-                    output += "- type: `\(candidate.type)`\n"
-                }
-                output += "- assertion: `\(candidate.assertion)`\n"
-                output += "- similarity: \(candidate.similarity)\n"
-                if candidate.context.isEmpty {
-                    output += "- 1-hop context: none\n"
-                } else {
-                    output += "- 1-hop context:\n"
-                    for statement in candidate.context {
-                        output += "  - \(statement.direction.rawValue): `\(statement.subject)` `\(statement.predicate)` `\(statement.object)`\n"
-                    }
-                }
-            }
-            output += "\n"
-        }
-
-        return output
     }
 
 }

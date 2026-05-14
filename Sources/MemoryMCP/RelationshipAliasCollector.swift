@@ -3,6 +3,15 @@
 
 import Foundation
 
+struct RelationshipAliasConflict: Sendable, Equatable {
+    var names: [String]
+    var targets: [String]
+
+    var displayName: String {
+        names.sorted().first ?? ""
+    }
+}
+
 struct RelationshipAliasCollector {
     private struct Entry {
         var names: Set<String> = []
@@ -29,6 +38,19 @@ struct RelationshipAliasCollector {
                 return []
             }
             return entry.names.map { (name: $0, target: target) }
+        }
+    }
+
+    var conflicts: [RelationshipAliasConflict] {
+        entries.values.compactMap { entry in
+            guard entry.targets.count > 1 else { return nil }
+            return RelationshipAliasConflict(
+                names: entry.names.sorted(),
+                targets: entry.targets.sorted()
+            )
+        }
+        .sorted { lhs, rhs in
+            lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending
         }
     }
 

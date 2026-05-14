@@ -5,11 +5,23 @@ import Foundation
 import SwiftMemory
 @_spi(Internal) import SwiftGeneration
 
+struct DecodedMemoryKnowledge: Sendable {
+    var batch: MemoryBatch
+    var aliasConflicts: [RelationshipAliasConflict]
+}
+
 struct MemoryKnowledgeDecoder {
     static func decode(
         _ data: Data,
         entityTypes: [any MemoryStorable.Type]
     ) throws -> MemoryBatch {
+        try decodeWithDiagnostics(data, entityTypes: entityTypes).batch
+    }
+
+    static func decodeWithDiagnostics(
+        _ data: Data,
+        entityTypes: [any MemoryStorable.Type]
+    ) throws -> DecodedMemoryKnowledge {
         let jsonString = String(data: data, encoding: .utf8) ?? "{}"
         let root = try GeneratedContent(json: jsonString)
         let props = try root.properties()
@@ -39,6 +51,9 @@ struct MemoryKnowledgeDecoder {
             }
         }
 
-        return batch
+        return DecodedMemoryKnowledge(
+            batch: batch,
+            aliasConflicts: aliasCollector.conflicts
+        )
     }
 }

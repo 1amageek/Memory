@@ -13,9 +13,9 @@ import SwiftMemory
 ///
 /// Combines three requirements:
 /// - `Persistable` — for FDB persistence
-/// - `Entity` — for polymorphic storage + embedding-based resolution
-///   (contributes `label` and `embedding`; deduplication logic lives in
-///   `SwiftMemory.Memory.store()`)
+/// - `Entity` — for polymorphic storage + embedding-based candidate retrieval
+///   (contributes `assertion` and `embedding`; identity judgment happens before
+///   store, not inside `SwiftMemory.Memory.store()`)
 /// - `Generable` — for JSON decode + MCP schema generation
 ///
 /// The only additional responsibility of this protocol is mapping the type to

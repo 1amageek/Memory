@@ -36,7 +36,7 @@ func registerMemoryTools(
             ),
             Tool(
                 name: "store",
-                description: "Store structured knowledge in memory. The input schema describes all available entity types and their properties.",
+                description: "Store structured knowledge in memory after deterministic preflight validation. Store persists the final payload exactly as provided and does not perform entity deduplication.",
                 inputSchema: storeSchema
             ),
             Tool(
@@ -75,7 +75,7 @@ private func buildResolveInputSchema(knowledgeSchema: Value) -> Value {
             ]),
             "limit": .object([
                 "type": "integer",
-                "description": "Maximum candidates returned per input entity. Default: 30"
+                "description": "Requested candidate limit. The resolve report is capped to the strongest three candidates per input."
             ])
         ]),
         "required": .array([.string("knowledge")])
@@ -167,9 +167,10 @@ private func handleResolve(
         }
 
         let threshold = Float(arguments["threshold"]?.doubleValue ?? Double(SwiftMemory.Memory.defaultResolveThreshold))
-        let limit = arguments["limit"]?.intValue ?? SwiftMemory.Memory.defaultResolveLimit
-        let resolved = try await memory.resolve(batch.entities, threshold: threshold, limit: limit)
-        let output = formatResolvedEntities(resolved)
+        let requestedLimit = arguments["limit"]?.intValue ?? SwiftMemory.Memory.defaultResolveLimit
+        let resolveSearchLimit = ResolveLimitPolicy.searchLimit(for: requestedLimit)
+        let resolved = try await memory.resolve(batch.entities, threshold: threshold, limit: resolveSearchLimit)
+        let output = ResolveReportFormatter.format(resolved, requestedLimit: requestedLimit)
         return .init(content: [.text(text: output, annotations: nil, _meta: nil)], isError: false)
     } catch {
         return .init(content: [.text(text: "Resolve failed: \(error.localizedDescription)", annotations: nil, _meta: nil)], isError: true)
@@ -189,52 +190,17 @@ private func handleStore(
 
     do {
         let jsonData = try JSONEncoder().encode(knowledgeValue)
-        let capturedTypes = entityTypes
+        let decoded = try MemoryKnowledgeDecoder.decodeWithDiagnostics(
+            jsonData,
+            entityTypes: entityTypes
+        )
+        try MemoryStorePreflightValidator.validate(decoded)
 
-        try await memory.store(given: givenText, knowledgeData: jsonData) { data in
-            try MemoryKnowledgeDecoder.decode(data, entityTypes: capturedTypes)
-        }
+        try await memory.store(given: givenText, knowledge: decoded.batch)
         return .init(content: [.text(text: "Stored successfully", annotations: nil, _meta: nil)], isError: false)
     } catch {
         return .init(content: [.text(text: "Store failed: \(error.localizedDescription)", annotations: nil, _meta: nil)], isError: true)
     }
-}
-
-private func formatResolvedEntities(_ resolved: [ResolvedEntity]) -> String {
-    var output = "Resolved candidate entities: \(resolved.count)\n\n"
-
-    for (index, entity) in resolved.enumerated() {
-        output += "## Input \(index + 1)\n"
-        output += "- assertion: `\(entity.inputAssertion)`\n"
-        if entity.candidates.isEmpty {
-            output += "- candidates: none\n\n"
-            continue
-        }
-
-        for (candidateIndex, candidate) in entity.candidates.enumerated() {
-            output += "\n### Candidate \(candidateIndex + 1)\n"
-            output += "- id: `\(candidate.id)`\n"
-            if !candidate.label.isEmpty {
-                output += "- label: \(candidate.label)\n"
-            }
-            if !candidate.type.isEmpty {
-                output += "- type: `\(candidate.type)`\n"
-            }
-            output += "- assertion: `\(candidate.assertion)`\n"
-            output += "- similarity: \(candidate.similarity)\n"
-            if candidate.context.isEmpty {
-                output += "- 1-hop context: none\n"
-            } else {
-                output += "- 1-hop context:\n"
-                for statement in candidate.context {
-                    output += "  - \(statement.direction.rawValue): `\(statement.subject)` `\(statement.predicate)` `\(statement.object)`\n"
-                }
-            }
-        }
-        output += "\n"
-    }
-
-    return output
 }
 
 // MARK: - MCP Tool Input Types

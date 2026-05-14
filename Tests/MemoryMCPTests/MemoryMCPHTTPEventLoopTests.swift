@@ -17,8 +17,10 @@ struct MemoryMCPHTTPEventLoopTests {
 
     // MARK: - Helpers
 
-    private func makeServer() async throws -> (server: MemoryMCPHTTPServer, port: Int) {
-        let memory = try await Memory(path: nil)
+    private func makeServer(
+        embeddingProvider: (any EmbeddingProvider)? = nil
+    ) async throws -> (server: MemoryMCPHTTPServer, port: Int) {
+        let memory = try await Memory(path: nil, embeddingProvider: embeddingProvider)
         let server = MemoryMCPHTTPServer(
             memory: memory,
             entityTypes: [] as [any MemoryStorable.Type]
@@ -186,6 +188,76 @@ struct MemoryMCPHTTPEventLoopTests {
         #expect(bodyString.contains("result"))
     }
 
+    @Test(.timeLimit(.minutes(1)))
+    func toolsCallStore_rejectsInvalidPayloadBeforePersistence() async throws {
+        let (server, port) = try await makeServer()
+        defer { Task { await server.stop() } }
+
+        let sessionID = try await initializeSession(port: port)
+
+        let (data, status, _) = try await postMCP(
+            port: port, sessionID: sessionID,
+            body: [
+                "jsonrpc": "2.0", "id": 4, "method": "tools/call",
+                "params": [
+                    "name": "store",
+                    "arguments": [
+                        "given": "Invalid store payload",
+                        "knowledge": [
+                            "relationships": [
+                                [
+                                    "subject": "",
+                                    "predicate": "rdf:type",
+                                    "object": "ex:Organization",
+                                ],
+                            ],
+                        ],
+                    ],
+                ] as [String: Any],
+            ]
+        )
+
+        #expect(status == 200)
+        let bodyString = String(decoding: data, as: UTF8.self)
+        #expect(bodyString.contains("Memory store preflight failed"))
+        #expect(bodyString.contains("empty subject"))
+        #expect(bodyString.contains("schema/class predicate"))
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func toolsCallStore_acceptsValidPayload() async throws {
+        let (server, port) = try await makeServer(embeddingProvider: ConstantEmbeddingProvider())
+        defer { Task { await server.stop() } }
+
+        let sessionID = try await initializeSession(port: port)
+
+        let (data, status, _) = try await postMCP(
+            port: port, sessionID: sessionID,
+            body: [
+                "jsonrpc": "2.0", "id": 5, "method": "tools/call",
+                "params": [
+                    "name": "store",
+                    "arguments": [
+                        "given": "Valid store payload",
+                        "knowledge": [
+                            "relationships": [
+                                [
+                                    "subject": "Source",
+                                    "predicate": "ex:mentions",
+                                    "object": "Target",
+                                ],
+                            ],
+                        ],
+                    ],
+                ] as [String: Any],
+            ]
+        )
+
+        #expect(status == 200)
+        let bodyString = String(decoding: data, as: UTF8.self)
+        #expect(bodyString.contains("Stored successfully"))
+    }
+
     // MARK: - Concurrent MCP tool calls after initialize
 
     @Test(.timeLimit(.minutes(1)))
@@ -325,6 +397,16 @@ struct MemoryMCPHTTPEventLoopTests {
 private enum MCPTestError: Error {
     case unexpectedStatus(Int)
     case missingSessionID
+}
+
+private struct ConstantEmbeddingProvider: EmbeddingProvider {
+    var dimensions: Int { Given.embeddingDimensions }
+
+    func embed(_ text: String) async throws -> [Float] {
+        var embedding = [Float](repeating: 0, count: dimensions)
+        embedding[0] = 1
+        return embedding
+    }
 }
 
 extension Tag {
