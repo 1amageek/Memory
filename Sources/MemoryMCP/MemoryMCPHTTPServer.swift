@@ -455,6 +455,29 @@ private final class MCPHTTPHandler: ChannelInboundHandler, @unchecked Sendable {
                 ctx.flush()
             }
 
+            let heartbeatTask = Task {
+                while !Task.isCancelled {
+                    do {
+                        try await Task.sleep(for: .seconds(25))
+                    } catch is CancellationError {
+                        break
+                    } catch {
+                        self.logger.warning("SSE heartbeat sleep error: \(error)")
+                        break
+                    }
+                    guard !Task.isCancelled else { break }
+                    eventLoop.execute {
+                        guard ctx.channel.isActive else { return }
+                        var buffer = ctx.channel.allocator.buffer(capacity: 3)
+                        buffer.writeString(":\n\n")
+                        ctx.writeAndFlush(self.wrapOutboundOut(.body(.byteBuffer(buffer))), promise: nil)
+                    }
+                }
+            }
+            defer {
+                heartbeatTask.cancel()
+            }
+
             do {
                 for try await chunk in stream {
                     eventLoop.execute {
